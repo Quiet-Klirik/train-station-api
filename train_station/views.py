@@ -10,6 +10,12 @@ from train_station.models import (
     Train,
     Order
 )
+from train_station.paginations import (
+    RoutePagination,
+    TrainPagination,
+    JourneyPagination,
+    OrderPagination,
+)
 from train_station.serializers import (
     RouteSerializer,
     RouteListSerializer,
@@ -28,6 +34,7 @@ from train_station.serializers import (
 class RouteViewSet(viewsets.ModelViewSet):
     queryset = Route.objects.all()
     serializer_class = RouteSerializer
+    pagination_class = RoutePagination
 
     def get_retrieve_queryset(self):
         now = timezone.now()
@@ -66,6 +73,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 class TrainViewSet(viewsets.ModelViewSet):
     queryset = Train.objects.all()
     serializer_class = TrainSerializer
+    pagination_class = TrainPagination
 
     def get_queryset(self):
         queryset = self.queryset
@@ -86,6 +94,7 @@ class TrainViewSet(viewsets.ModelViewSet):
 class JourneyViewSet(viewsets.ModelViewSet):
     queryset = Journey.objects.all()
     serializer_class = JourneySerializer
+    pagination_class = JourneyPagination
 
     def get_queryset(self):
         queryset = self.queryset
@@ -118,6 +127,7 @@ class JourneyViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    pagination_class = OrderPagination
 
     def get_queryset(self):
         queryset = self.queryset
