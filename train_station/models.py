@@ -1,12 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
 class Station(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    latitude = models.FloatField(
+        validators=[MinValueValidator(-90), MaxValueValidator(90)]
+    )
+    longitude = models.FloatField(
+        validators=[MinValueValidator(-180), MaxValueValidator(180)]
+    )
 
     class Meta:
         constraints = [
@@ -16,20 +21,6 @@ class Station(models.Model):
             )
         ]
         ordering = ["name"]
-
-    def clean(self):
-        if not -90 <= self.latitude <= 90:
-            raise ValidationError({
-                'latitude': 'Latitude must be between -90 and 90.'
-            })
-        if not -180 <= self.longitude <= 180:
-            raise ValidationError({
-                'longitude': 'Longitude must be between -180 and 180.'
-            })
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -46,16 +37,31 @@ class Route(models.Model):
         on_delete=models.CASCADE,
         related_name="destination_routes"
     )
-    distance = models.PositiveIntegerField(null=True)
+    distance = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "destination"],
+                name="route_source_destination_unique"
+            )
+        ]
         ordering = ["source__name", "destination__name"]
 
+    @staticmethod
+    def validate_destination(
+            destination,
+            source,
+            exception_error=ValidationError
+    ):
+        if destination == source:
+            raise exception_error({
+                "destination": "Source and destination stations "
+                               "must be different"
+            })
+
     def clean(self):
-        if self.source == self.destination:
-            raise ValidationError(
-                "Source and destination stations must be different"
-            )
+        self.validate_destination(self.destination, self.source)
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -126,11 +132,13 @@ class Journey(models.Model):
         ordering = ["-departure_time"]
 
     def __str__(self):
-        return f"Train {self.train} ({self.route})"
+        return (
+            f"Train {self.train} ({self.route}) {self.departure_time.time()}"
+        )
 
 
 class Order(models.Model):
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
@@ -167,17 +175,21 @@ class Ticket(models.Model):
         ]
         ordering = ["-journey__departure_time", "wagon", "seat"]
 
-    def clean(self):
-        if self.wagon > self.journey.train.wagons_num:
-            raise ValidationError({
+    @staticmethod
+    def validate_seat(wagon, seat, journey, exception_error=ValidationError):
+        if wagon > journey.train.wagons_num:
+            raise exception_error({
                 "wagon": f"The wagon number must be less than "
-                         f"or equal to {self.journey.train.wagons_num}."
+                         f"or equal to {journey.train.wagons_num}."
             })
-        if self.seat > self.journey.train.places_in_wagon:
-            raise ValidationError({
+        if seat > journey.train.places_in_wagon:
+            raise exception_error({
                 "seat": f"The seat number must be less than "
-                        f"or equal to {self.journey.train.places_in_wagon}"
+                        f"or equal to {journey.train.places_in_wagon}"
             })
+
+    def clean(self):
+        self.validate_seat(self.wagon, self.seat, self.journey)
 
     def save(self, *args, **kwargs):
         self.clean()
