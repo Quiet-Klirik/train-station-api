@@ -14,10 +14,16 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
+from debug_toolbar.toolbar import debug_toolbar_urls
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+
+from train_station_api import settings
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("train_station.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += debug_toolbar_urls()
