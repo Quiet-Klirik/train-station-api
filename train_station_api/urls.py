@@ -23,6 +23,7 @@ from train_station_api import settings
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("train_station.urls")),
+    path("api/v1/user/", include("user.urls", namespace="user")),
 ]
 
 if settings.DEBUG:
